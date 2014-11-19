@@ -1,0 +1,108 @@
+package com.webtech.propertysearch;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.support.v7.app.ActionBarActivity;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import android.widget.Spinner;
+import android.widget.TextView;
+
+
+public class MainActivity extends ActionBarActivity {
+
+	public final static String STREET_ADDRESS = "com.webtech.propertysearch.ADDRESS";
+	public final static String CITY = "com.webtech.propertysearch.CITY";
+	public final static String STATE = "com.webtech.propertysearch.STATE";
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        setTitle("CSCI571 Homework 9");
+        
+        //Populating the Spinner
+        populateSpinner();
+    }
+
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        int id = item.getItemId();
+        if (id == R.id.action_settings) {
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+    
+    public void sendZillow(View view){
+    	boolean flag = true;
+    	String streetAddress = ((EditText)findViewById(R.id.StreetAddressInput)).getText().toString();
+    	String city = ((EditText)findViewById(R.id.CityInput)).getText().toString();
+    	String state = ((Spinner)findViewById(R.id.stateInput)).getSelectedItem().toString();
+    	
+    	if(streetAddress == null || streetAddress.isEmpty())
+    	{
+    		TextView error = (TextView)findViewById(R.id.StreetError);
+    		error.setVisibility(View.VISIBLE);
+    		flag = false;
+    	}
+    	else
+    	{
+    		TextView error = (TextView)findViewById(R.id.StreetError);
+    		error.setVisibility(View.INVISIBLE);
+    	}
+    	if(city == null || city.isEmpty())
+    	{
+    		TextView error = (TextView)findViewById(R.id.CityError);
+    		error.setVisibility(View.VISIBLE);
+    		flag = false;
+    	}
+    	else
+    	{
+    		TextView error = (TextView)findViewById(R.id.CityError);
+    		error.setVisibility(View.INVISIBLE);
+    	}
+    	if(state.equalsIgnoreCase("Choose State"))
+    	{
+    		TextView error = (TextView)findViewById(R.id.StateError);
+    		error.setVisibility(View.VISIBLE);
+    		flag = false;
+    	}
+    	else
+    	{
+    		TextView error = (TextView)findViewById(R.id.StateError);
+    		error.setVisibility(View.INVISIBLE);
+    	}
+    	if(flag)
+    	{
+    		Intent intent = new Intent(this, DisplayPropertyDetails.class);
+    		intent.putExtra(STREET_ADDRESS, streetAddress);
+    		intent.putExtra(CITY, city);
+    		intent.putExtra(STATE, state);
+    		startActivity(intent);
+    	}
+    }
+    private void populateSpinner() {
+    	Spinner spinner = (Spinner) findViewById(R.id.stateInput);
+    	// Create an ArrayAdapter using the string array and a default spinner layout
+    	ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this,
+    	        R.array.states, android.R.layout.simple_spinner_item);
+    	// Specify the layout to use when the list of choices appears
+    	adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+    	// Apply the adapter to the spinner
+    	spinner.setAdapter(adapter);	
+    }
+}
