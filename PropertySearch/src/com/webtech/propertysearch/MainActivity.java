@@ -37,7 +37,9 @@ public class MainActivity extends ActionBarActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         setTitle("CSCI571 Homework 9");
-        
+        getSupportActionBar().setDisplayShowHomeEnabled(true);
+        getSupportActionBar().setLogo(R.drawable.ic_launcher);
+        getSupportActionBar().setDisplayUseLogoEnabled(true);
         //Populating the Spinner
         populateSpinner();
         ImageView img = (ImageView)findViewById(R.id.zillowLogo);
@@ -77,7 +79,8 @@ public class MainActivity extends ActionBarActivity {
     	String streetAddress = ((EditText)findViewById(R.id.StreetAddressInput)).getText().toString();
     	String city = ((EditText)findViewById(R.id.CityInput)).getText().toString();
     	String state = ((Spinner)findViewById(R.id.stateInput)).getSelectedItem().toString();
-    	
+    	TextView noResults = (TextView) findViewById(R.id.NoResults);
+    	noResults.setVisibility(View.INVISIBLE);
     	if(streetAddress == null || streetAddress.isEmpty())
     	{
     		TextView error = (TextView)findViewById(R.id.StreetError);
@@ -136,6 +139,7 @@ private class NetworkConnection extends AsyncTask<String, String, JSONObject> {
 			constructUrl(addressDetails[0], addressDetails[1], addressDetails[2]);
 			JSONObject propertyDetails = parser.getJSONFromUrl(url);
 			
+			if (propertyDetails.length() == 0) return new JSONObject();
 			try {
 			JSONObject chart = propertyDetails.getJSONObject("chart");
 			String urlString = chart.getJSONObject("1year").getString("url");
@@ -144,7 +148,9 @@ private class NetworkConnection extends AsyncTask<String, String, JSONObject> {
 			DownloadImages("5Year.jpg", urlString);
 			urlString = chart.getJSONObject("10years").getString("url");
 			DownloadImages("10Year.jpg", urlString);
-			}catch(Exception e){}
+			
+			}catch(Exception e){
+			}
 			return propertyDetails;
 		}
 		
@@ -156,8 +162,12 @@ private class NetworkConnection extends AsyncTask<String, String, JSONObject> {
 		@Override
         protected void onPostExecute(JSONObject json) {
         try {
-           //TextView basicInfo = (TextView)findViewById(R.id.textView2);
-           //basicInfo.setText(json.toString());
+        	if(json == null || json.length() == 0)
+        	{
+        		TextView noResults = (TextView) findViewById(R.id.NoResults);
+            	noResults.setVisibility(View.VISIBLE);
+            	return;
+        	}
            String JSONStr = json.toString();
            Intent intent = new Intent(MainActivity.this, DisplayPropertyDetails.class);
            intent.putExtra(JSONSTRING, JSONStr);

@@ -3,11 +3,15 @@ package com.webtech.propertysearch;
 import org.json.JSONObject;
 
 import android.app.ActionBar.LayoutParams;
+import android.graphics.Color;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.v4.app.Fragment;
 import android.text.Html;
+import android.text.method.LinkMovementMethod;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -86,6 +90,10 @@ public class HistoricalZestimates extends Fragment {
             @Override
             public View makeView() {
             	TextView myView = new TextView(getActivity().getApplicationContext());
+            	myView.setTextSize(16);
+            	myView.setGravity(Gravity.CENTER);
+            	myView.setTypeface(Typeface.DEFAULT_BOLD);
+            	myView.setTextColor(Color.BLACK);
                 return myView;
             	}
         	});
@@ -114,6 +122,12 @@ public class HistoricalZestimates extends Fragment {
 		        textSwitcher.setText(TEXTS[count]);
 			}
 		});
+        String branding = "<p>&copy; Zillow, Inc., 2006-2014<br />";
+        branding += "Use is subject to <a href=\"http://www.zillow.com/corp/Terms.htm\">Terms of Use</a><br />";
+        branding += "<a href=\"http://www.zillow.com/wikipages/What-is-a-Zestimate/\">What's a Zestimate?</a></p>";
+        TextView brand = (TextView) view.findViewById(R.id.branding2);
+        brand.setText(Html.fromHtml(branding));
+        brand.setMovementMethod(LinkMovementMethod.getInstance());
         return view;
     }
     

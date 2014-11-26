@@ -1,0 +1,211 @@
+package com.webtech.propertysearch;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+
+import org.json.JSONObject;
+
+import android.content.Intent;
+import android.net.Uri;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.os.Environment;
+import android.support.v7.app.ActionBarActivity;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.Spinner;
+import android.widget.TextView;
+
+
+public class MainActivity extends ActionBarActivity {
+
+	public final static String STREET_ADDRESS = "com.webtech.propertysearch.ADDRESS";
+	public final static String CITY = "com.webtech.propertysearch.CITY";
+	public final static String STATE = "com.webtech.propertysearch.STATE";
+	public static String JSONSTRING = "com.webtech.propertysearch.JSON";
+	private static String url = "";
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        setTitle("CSCI571 Homework 9");
+        getSupportActionBar().setDisplayShowHomeEnabled(true);
+        getSupportActionBar().setLogo(R.drawable.ic_launcher);
+        getSupportActionBar().setDisplayUseLogoEnabled(true);
+        //Populating the Spinner
+        populateSpinner();
+        ImageView img = (ImageView)findViewById(R.id.zillowLogo);
+        img.setOnClickListener(new View.OnClickListener(){
+            public void onClick(View v){
+                Intent intent = new Intent();
+                intent.setAction(Intent.ACTION_VIEW);
+                intent.addCategory(Intent.CATEGORY_BROWSABLE);
+                intent.setData(Uri.parse("http://www.zillow.com"));
+                startActivity(intent);
+            }
+        });
+    }
+
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        int id = item.getItemId();
+        if (id == R.id.action_settings) {
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+    
+    public void sendZillow(View view){
+    	boolean flag = true;
+    	String streetAddress = ((EditText)findViewById(R.id.StreetAddressInput)).getText().toString();
+    	String city = ((EditText)findViewById(R.id.CityInput)).getText().toString();
+    	String state = ((Spinner)findViewById(R.id.stateInput)).getSelectedItem().toString();
+    	TextView noResults = (TextView) findViewById(R.id.NoResults);
+    	noResults.setVisibility(View.INVISIBLE);
+    	if(streetAddress == null || streetAddress.isEmpty())
+    	{
+    		TextView error = (TextView)findViewById(R.id.StreetError);
+    		error.setVisibility(View.VISIBLE);
+    		flag = false;
+    	}
+    	else
+    	{
+    		TextView error = (TextView)findViewById(R.id.StreetError);
+    		error.setVisibility(View.INVISIBLE);
+    	}
+    	if(city == null || city.isEmpty())
+    	{
+    		TextView error = (TextView)findViewById(R.id.CityError);
+    		error.setVisibility(View.VISIBLE);
+    		flag = false;
+    	}
+    	else
+    	{
+    		TextView error = (TextView)findViewById(R.id.CityError);
+    		error.setVisibility(View.INVISIBLE);
+    	}
+    	if(state.equalsIgnoreCase("Choose State"))
+    	{
+    		TextView error = (TextView)findViewById(R.id.StateError);
+    		error.setVisibility(View.VISIBLE);
+    		flag = false;
+    	}
+    	else
+    	{
+    		TextView error = (TextView)findViewById(R.id.StateError);
+    		error.setVisibility(View.INVISIBLE);
+    	}
+    	if(flag)
+    	{
+    		new NetworkConnection().execute(streetAddress, city, state);
+    	}
+    }
+    private void populateSpinner() {
+    	Spinner spinner = (Spinner) findViewById(R.id.stateInput);
+    	// Create an ArrayAdapter using the string array and a default spinner layout
+    	ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this,
+    	        R.array.states, android.R.layout.simple_spinner_item);
+    	// Specify the layout to use when the list of choices appears
+    	adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+    	// Apply the adapter to the spinner
+    	spinner.setAdapter(adapter);	
+    }
+    
+private class NetworkConnection extends AsyncTask<String, String, JSONObject> {
+		
+		
+		@Override
+		protected JSONObject doInBackground(String... addressDetails) {
+			JSONParser parser = new JSONParser();
+			constructUrl(addressDetails[0], addressDetails[1], addressDetails[2]);
+			JSONObject propertyDetails = parser.getJSONFromUrl(url);
+			
+			try {
+			JSONObject chart = propertyDetails.getJSONObject("chart");
+			String urlString = chart.getJSONObject("1year").getString("url");
+			DownloadImages("1Year.jpg", urlString);
+			urlString = chart.getJSONObject("5years").getString("url");
+			DownloadImages("5Year.jpg", urlString);
+			urlString = chart.getJSONObject("10years").getString("url");
+			DownloadImages("10Year.jpg", urlString);
+			
+			}catch(Exception e){
+			}
+			return propertyDetails;
+		}
+		
+		@Override
+		protected void onPreExecute() {
+			super.onPreExecute();
+		}
+		
+		@Override
+        protected void onPostExecute(JSONObject json) {
+        try {
+        	if(json == null)
+        	{
+        		TextView noResults = (TextView) findViewById(R.id.NoResults);
+            	noResults.setVisibility(View.VISIBLE);
+            	return;
+        	}
+           String JSONStr = json.toString();
+           Intent intent = new Intent(MainActivity.this, DisplayPropertyDetails.class);
+           intent.putExtra(JSONSTRING, JSONStr);
+           startActivity(intent);
+       } catch (Exception e) {
+         e.printStackTrace();
+       }
+      }
+		private void constructUrl(String streetAddress, String city, String state) {
+			//http://propertysearch2014-env.elasticbeanstalk.com/index.php?streetAddress=2636%20Menlo%20Ave&city=Los%20Angeles&state=CA
+			url = "http://propertysearch2014-env.elasticbeanstalk.com/index.php?streetAddress=";
+			try {
+				url += URLEncoder.encode(streetAddress, "UTF-8");
+				url += "&city=";
+				url += URLEncoder.encode(city, "UTF-8");
+				url += "&state=";
+				url += URLEncoder.encode(state, "UTF-8");
+			}catch(Exception e){}
+		}
+		private void DownloadImages(String imageName, String imageUrl) {
+			try {
+			URL url = new URL(imageUrl);
+			HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+			urlConnection.setRequestMethod("GET");
+	        urlConnection.setDoOutput(true);
+	        urlConnection.connect();
+	        File SDCardRoot = Environment.getExternalStorageDirectory();
+	        File file = new File(SDCardRoot,imageName);
+	        FileOutputStream fileOutput = new FileOutputStream(file);
+	        InputStream inputStream = urlConnection.getInputStream();
+	        byte[] buffer = new byte[1024];
+	        int bufferLength = 0;
+	        while ( (bufferLength = inputStream.read(buffer)) > 0 ) {
+                //add the data in the buffer to the file in the file output stream (the file on the sd card
+                fileOutput.write(buffer, 0, bufferLength);
+        }
+        //close the output stream when done
+        fileOutput.close();
+			}catch(Exception e){}
+		}
+	}
+}

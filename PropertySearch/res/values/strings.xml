@@ -18,7 +18,11 @@
     <string name="body2">body2</string>
     <string name="previous">Previous</string>
     <string name="next">Next</string>
-    <string name="more_details">See more details on Zillow</string>
+    <string name="more_details">See more details on Zillow:</string>
+    <string name="post_facebook">Post to Facebook</string>
+    <string name="cancel">Cancel</string>
+    <string name="no_result">No exact match found--Verify that the given address is correct.</string>
+    <string name="post_property_details">Post Property Details</string>
     <string-array name="states">
         <item>Choose State</item>
         <item>AL</item>

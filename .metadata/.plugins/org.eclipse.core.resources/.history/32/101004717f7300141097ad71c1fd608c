@@ -1,0 +1,280 @@
+package com.webtech.propertysearch;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import android.app.Activity;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.os.Bundle;
+import android.support.v4.app.Fragment;
+import android.text.Html;
+import android.text.method.LinkMovementMethod;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.view.ViewGroup;
+import android.widget.ImageButton;
+import android.widget.ListView;
+import android.widget.SimpleAdapter;
+import android.widget.TextView;
+
+import com.facebook.android.AsyncFacebookRunner;
+import com.facebook.android.DialogError;
+import com.facebook.android.Facebook;
+import com.facebook.android.Facebook.DialogListener;
+import com.facebook.android.FacebookError;
+
+public class BasicInformation extends Fragment {
+    // Store instance variables
+    private String page;
+    private static String APP_ID = "725625657524018";
+    private Facebook facebook;
+    private AsyncFacebookRunner mAsyncRunner;
+    String FILENAME = "AndroidSSO_data";
+    private SharedPreferences mPrefs;
+    private Context facebookContext;
+    
+    // newInstance constructor for creating fragment with arguments
+    public static BasicInformation newInstance(String page) {
+        BasicInformation fragmentFirst = new BasicInformation();
+        Bundle args = new Bundle();
+        args.putString("details", page);
+        fragmentFirst.setArguments(args);
+        return fragmentFirst;
+    }
+
+    // Store instance variables based on arguments passed
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        page = getArguments().getString("details");
+    }
+
+    // Inflate the view for the fragment based on layout XML
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.basic_info_tab, container, false);
+        ListView basicInfo = (ListView)view.findViewById(R.id.BasicPropertyInformation);
+        ArrayList<HashMap<String,String>> listDetails = PopulateBasicInformation();
+        SpecialAdapter specialAdapter = new SpecialAdapter(view.getContext(), listDetails, R.layout.listview_row, new String[]{"PropertyKey", "PropertyValue"}, new int[]{R.id.infoKey, R.id.infoValue});
+        basicInfo.setAdapter(specialAdapter);
+        TextView homeDetails = (TextView)view.findViewById(R.id.homedetails);
+        try {
+        	JSONObject result = new JSONObject(page).getJSONObject("result");
+        	String address = "<a href=\"" + result.getString("homedetails") +"\">";
+        	address += result.getString("street") +", ";
+        	address += result.getString("city") + ", ";
+        	address += result.getString("state") + "-" + result.getString("zipcode");
+        	address += "</a>";
+        	homeDetails.setText(Html.fromHtml(address));
+        	homeDetails.setMovementMethod(LinkMovementMethod.getInstance());
+        } catch(Exception e) {}
+        facebook = new Facebook(APP_ID);
+        mAsyncRunner = new AsyncFacebookRunner(facebook);
+        mPrefs = view.getContext().getSharedPreferences("FacebookPreferences", Context.MODE_PRIVATE);
+        ImageButton facebookButton = (ImageButton) view.findViewById(R.id.facebookButton);
+        facebookContext = view.getContext();
+        facebookButton.setOnClickListener(new OnClickListener() {
+			
+			@Override
+			public void onClick(View v) {
+				loginToFacebook();
+				postToWall();
+			}
+		});
+        String branding = "<p>&copy; Zillow, Inc., 2006-2014<br />";
+        branding += "Use is subject to <a href=\"http://www.zillow.com/corp/Terms.htm\">Terms of Use</a><br />";
+        branding += "<a href=\"http://www.zillow.com/wikipages/What-is-a-Zestimate/\">What's a Zestimate?</a></p>";
+        TextView brand = (TextView) view.findViewById(R.id.branding1);
+        brand.setText(Html.fromHtml(branding));
+        brand.setMovementMethod(LinkMovementMethod.getInstance());
+        return view;
+    }
+    
+    public void postToWall() {
+        // post on user's wall.
+        facebook.dialog(facebookContext, "feed", new DialogListener() {
+     
+            @Override
+            public void onFacebookError(FacebookError e) {
+            }
+     
+            @Override
+            public void onError(DialogError e) {
+            }
+     
+            @Override
+            public void onComplete(Bundle values) {
+            }
+     
+            @Override
+            public void onCancel() {
+            }
+        });
+     
+    }
+    public void loginToFacebook() {
+        String access_token = mPrefs.getString("access_token", null);
+        long expires = mPrefs.getLong("access_expires", 0);
+     
+        if (access_token != null) {
+            facebook.setAccessToken(access_token);
+        }
+     
+        if (expires != 0) {
+            facebook.setAccessExpires(expires);
+        }
+     
+        if (!facebook.isSessionValid()) {
+            facebook.authorize((Activity)facebookContext,
+                    new String[] { "email", "publish_stream" },
+                    new DialogListener() {
+     
+                        @Override
+                        public void onCancel() {
+                            // Function to handle cancel event
+                        }
+     
+                        @Override
+                        public void onComplete(Bundle values) {
+                            // Function to handle complete event
+                            // Edit Preferences and update facebook acess_token
+                            SharedPreferences.Editor editor = mPrefs.edit();
+                            editor.putString("access_token",
+                                    facebook.getAccessToken());
+                            editor.putLong("access_expires",
+                                    facebook.getAccessExpires());
+                            editor.commit();
+                        }
+     
+                        @Override
+                        public void onError(DialogError error) {
+                            // Function to handle error
+     
+                        }
+     
+                        @Override
+                        public void onFacebookError(FacebookError fberror) {
+                            // Function to handle Facebook errors
+     
+                        }
+     
+                    });
+        }
+    }
+    
+    private ArrayList<HashMap<String,String>> PopulateBasicInformation()
+	{
+    	try {
+	    	JSONObject json = new JSONObject(page);
+	        ArrayList<HashMap<String,String>> listDetails = new ArrayList<HashMap<String,String>>();
+	        HashMap<String,String> jsonMap = new HashMap<String, String>();
+	        JSONObject result;
+			result = json.getJSONObject("result");
+			jsonMap.put("PropertyKey", "Property Type");
+			jsonMap.put("PropertyValue", result.getString("useCode"));
+			listDetails.add(jsonMap);
+			
+			jsonMap = new HashMap<String, String>();
+			jsonMap.put("PropertyKey", "Year Built");
+			jsonMap.put("PropertyValue", result.getString("yearBuilt"));
+			listDetails.add(jsonMap);
+			
+			jsonMap = new HashMap<String, String>();
+			jsonMap.put("PropertyKey", "Lot Size");
+			jsonMap.put("PropertyValue", result.getString("lotSizeSqFt")+" sq. ft.");
+			listDetails.add(jsonMap);
+			
+			jsonMap = new HashMap<String, String>();
+			jsonMap.put("PropertyKey", "Finished Area");
+			jsonMap.put("PropertyValue", result.getString("finishedSqFt")+" sq. ft.");
+			listDetails.add(jsonMap);
+			
+			jsonMap = new HashMap<String, String>();
+			jsonMap.put("PropertyKey", "Bathrooms");
+			jsonMap.put("PropertyValue", result.getString("bathrooms"));
+			listDetails.add(jsonMap);
+			
+			jsonMap = new HashMap<String, String>();
+			jsonMap.put("PropertyKey", "Bedrooms");
+			jsonMap.put("PropertyValue", result.getString("bedrooms"));
+			listDetails.add(jsonMap);
+			
+			jsonMap = new HashMap<String, String>();
+			jsonMap.put("PropertyKey", "Tax Assessment");
+			jsonMap.put("PropertyValue", result.getString("taxAssessmentYear"));
+			listDetails.add(jsonMap);
+			
+			jsonMap = new HashMap<String, String>();
+			jsonMap.put("PropertyKey", "Tax Assessment");
+			jsonMap.put("PropertyValue", "$" + result.getString("taxAssessment"));
+			listDetails.add(jsonMap);
+			
+			jsonMap = new HashMap<String, String>();
+			jsonMap.put("PropertyKey", "Last Sold Price");
+			jsonMap.put("PropertyValue", "$"+result.getString("lastSoldPrice"));
+			listDetails.add(jsonMap);
+			
+			jsonMap = new HashMap<String, String>();
+			jsonMap.put("PropertyKey", "Last Sold Date");
+			jsonMap.put("PropertyValue", result.getString("lastSoldDate"));
+			listDetails.add(jsonMap);
+			
+			jsonMap = new HashMap<String, String>();
+			jsonMap.put("PropertyKey", "Zestimate \u00AE Property Estimate as of " + result.getString("estimateLastUpdate"));
+			jsonMap.put("PropertyValue", "$" + result.getString("estimateAmount"));
+			listDetails.add(jsonMap);
+			
+			jsonMap = new HashMap<String, String>();
+			jsonMap.put("PropertyKey", "30 Days Overall Change");
+			jsonMap.put("PropertyValue", "$" + result.getString("estimateValueChange"));
+			listDetails.add(jsonMap);
+			
+			jsonMap = new HashMap<String, String>();
+			jsonMap.put("PropertyKey", "All Time Property Range");
+			jsonMap.put("PropertyValue", "$" + result.getString("estimateValueRangeLow") + " - $" + result.getString("estimateValueRangeHigh"));
+			listDetails.add(jsonMap);
+			
+			jsonMap = new HashMap<String, String>();
+			jsonMap.put("PropertyKey", "Rent Zestimate \u00AE Property Estimate as of " + result.getString("restimateLastUpdate"));
+			jsonMap.put("PropertyValue", "$" + result.getString("restimateAmount"));
+			listDetails.add(jsonMap);
+			
+			jsonMap = new HashMap<String, String>();
+			jsonMap.put("PropertyKey", "30 Days Rent Change");
+			jsonMap.put("PropertyValue", "$" + result.getString("restimateValueChange"));
+			listDetails.add(jsonMap);
+			
+			jsonMap = new HashMap<String, String>();
+			jsonMap.put("PropertyKey", "All Time Rent Range");
+			jsonMap.put("PropertyValue", "$" + result.getString("restimateValueRangeLow") + " - $" + result.getString("restimateValueRangeHigh"));
+			listDetails.add(jsonMap);
+			
+			return listDetails;
+		} catch (JSONException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+    
+    public class SpecialAdapter extends SimpleAdapter {
+	    private int[] colors = new int[] { 0xFFD3DCE8, 0xFFFFFFFF };
+	     
+	    public SpecialAdapter(Context context, List<HashMap<String, String>> items, int resource, String[] from, int[] to) {
+	        super(context, items, resource, from, to);
+	    }
+	 
+	    @Override
+	    public View getView(int position, View convertView, ViewGroup parent) {
+	      View view = super.getView(position, convertView, parent);
+	      int colorPos = position % colors.length;
+	      view.setBackgroundColor(colors[colorPos]);
+	      return view;
+	    }
+	}
+}

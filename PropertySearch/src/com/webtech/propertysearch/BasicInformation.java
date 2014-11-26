@@ -8,19 +8,24 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import android.app.Activity;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.v4.app.Fragment;
 import android.text.Html;
+import android.text.method.LinkMovementMethod;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.SimpleAdapter;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.facebook.android.AsyncFacebookRunner;
 import com.facebook.android.DialogError;
@@ -37,6 +42,13 @@ public class BasicInformation extends Fragment {
     String FILENAME = "AndroidSSO_data";
     private SharedPreferences mPrefs;
     private Context facebookContext;
+    
+    private String flink;
+    private String fname;
+    private String fDescription;
+    private String fPic;
+    private String overallChange; 
+    private String rentChange;
     
     // newInstance constructor for creating fragment with arguments
     public static BasicInformation newInstance(String page) {
@@ -66,12 +78,14 @@ public class BasicInformation extends Fragment {
         try {
         	JSONObject result = new JSONObject(page).getJSONObject("result");
         	String address = "<a href=\"" + result.getString("homedetails") +"\">";
-        	address = result.getString("street") +", ";
+        	address += result.getString("street") +", ";
         	address += result.getString("city") + ", ";
         	address += result.getString("state") + "-" + result.getString("zipcode");
         	address += "</a>";
         	homeDetails.setText(Html.fromHtml(address));
+        	homeDetails.setMovementMethod(LinkMovementMethod.getInstance());
         } catch(Exception e) {}
+        
         facebook = new Facebook(APP_ID);
         mAsyncRunner = new AsyncFacebookRunner(facebook);
         mPrefs = view.getContext().getSharedPreferences("FacebookPreferences", Context.MODE_PRIVATE);
@@ -79,33 +93,78 @@ public class BasicInformation extends Fragment {
         facebookContext = view.getContext();
         facebookButton.setOnClickListener(new OnClickListener() {
 			
-			@Override
+			/*@Override
 			public void onClick(View v) {
 				loginToFacebook();
 				postToWall();
-			}
+			}*/
+        	
+        	@Override
+        	public void onClick(View v) {
+        		final Dialog dialog = new Dialog(facebookContext);
+        		dialog.setContentView(R.layout.dialog);
+        		dialog.setTitle("Post to Facebook");
+        		Button cancelButton = (Button) dialog.findViewById(R.id.cancelDialog);
+        		cancelButton.setOnClickListener(new OnClickListener() {
+					
+					@Override
+					public void onClick(View v) {
+						dialog.dismiss();
+						Toast.makeText(facebookContext, "Post Cancelled", Toast.LENGTH_SHORT).show();
+					}
+				});
+        		
+        		Button shareButton = (Button) dialog.findViewById(R.id.shareDialog);
+        		shareButton.setOnClickListener(new OnClickListener() {
+					
+					@Override
+					public void onClick(View v) {
+						dialog.dismiss();
+						loginToFacebook();
+						postToWall();
+					}
+				});
+        		dialog.show();
+        	}
 		});
+        String branding = "<p>&copy; Zillow, Inc., 2006-2014<br />";
+        branding += "Use is subject to <a href=\"http://www.zillow.com/corp/Terms.htm\">Terms of Use</a><br />";
+        branding += "<a href=\"http://www.zillow.com/wikipages/What-is-a-Zestimate/\">What's a Zestimate?</a></p>";
+        TextView brand = (TextView) view.findViewById(R.id.branding1);
+        brand.setText(Html.fromHtml(branding));
+        brand.setMovementMethod(LinkMovementMethod.getInstance());
         return view;
     }
     
     public void postToWall() {
         // post on user's wall.
-        facebook.dialog(facebookContext, "feed", new DialogListener() {
+    	Bundle parameters = new Bundle();
+    	parameters.putString("description", fDescription);
+    	parameters.putString("link", flink);
+    	parameters.putString("name", fname);
+    	parameters.putString("caption", "Property Information from Zillow.com");
+    	parameters.putString("picture", fPic);
+    	
+        facebook.dialog(facebookContext, "feed", parameters, new DialogListener() {
      
             @Override
             public void onFacebookError(FacebookError e) {
+            	Toast.makeText(facebookContext, "Error", Toast.LENGTH_SHORT).show();
             }
      
             @Override
             public void onError(DialogError e) {
+            	Toast.makeText(facebookContext, "Error", Toast.LENGTH_SHORT).show();
             }
      
             @Override
             public void onComplete(Bundle values) {
+            	Toast.makeText(facebookContext, "Posted Story, ID:" + values.getString("post_id"), Toast.LENGTH_SHORT).show();
             }
      
             @Override
             public void onCancel() {
+            	Toast.makeText(facebookContext, "Post Cancelled", Toast.LENGTH_SHORT).show();
             }
         });
      
@@ -130,6 +189,8 @@ public class BasicInformation extends Fragment {
                         @Override
                         public void onCancel() {
                             // Function to handle cancel event
+                        	Toast.makeText(facebookContext, "Post Cancelled", Toast.LENGTH_SHORT).show();
+                        	
                         }
      
                         @Override
@@ -147,13 +208,13 @@ public class BasicInformation extends Fragment {
                         @Override
                         public void onError(DialogError error) {
                             // Function to handle error
-     
+                        	Toast.makeText(facebookContext, "Error", Toast.LENGTH_SHORT).show();
                         }
      
                         @Override
                         public void onFacebookError(FacebookError fberror) {
                             // Function to handle Facebook errors
-     
+                        	Toast.makeText(facebookContext, "Error", Toast.LENGTH_SHORT).show();
                         }
      
                     });
@@ -168,6 +229,13 @@ public class BasicInformation extends Fragment {
 	        HashMap<String,String> jsonMap = new HashMap<String, String>();
 	        JSONObject result;
 			result = json.getJSONObject("result");
+			
+			flink = result.getString("homedetails");
+			fname = result.getString("street") + ", " + result.getString("city") + ", " + result.getString("state") + "-" + result.getString("zipcode");
+			fDescription = "Last Sold Price: $" + result.getString("lastSoldPrice") + ", "; 
+			fDescription += "30 Days Overall Change: " + result.getString("estimateValueChangeSign") + "$" + result.getString("estimateValueChange");
+			fPic = json.getJSONObject("chart").getJSONObject("5years").getString("url");
+			
 			jsonMap.put("PropertyKey", "Property Type");
 			jsonMap.put("PropertyValue", result.getString("useCode"));
 			listDetails.add(jsonMap);
@@ -198,7 +266,7 @@ public class BasicInformation extends Fragment {
 			listDetails.add(jsonMap);
 			
 			jsonMap = new HashMap<String, String>();
-			jsonMap.put("PropertyKey", "Tax Assessment");
+			jsonMap.put("PropertyKey", "Tax Assessment Year");
 			jsonMap.put("PropertyValue", result.getString("taxAssessmentYear"));
 			listDetails.add(jsonMap);
 			
@@ -227,6 +295,8 @@ public class BasicInformation extends Fragment {
 			jsonMap.put("PropertyValue", "$" + result.getString("estimateValueChange"));
 			listDetails.add(jsonMap);
 			
+			overallChange = result.getString("estimateValueChangeSign");
+			
 			jsonMap = new HashMap<String, String>();
 			jsonMap.put("PropertyKey", "All Time Property Range");
 			jsonMap.put("PropertyValue", "$" + result.getString("estimateValueRangeLow") + " - $" + result.getString("estimateValueRangeHigh"));
@@ -242,6 +312,8 @@ public class BasicInformation extends Fragment {
 			jsonMap.put("PropertyValue", "$" + result.getString("restimateValueChange"));
 			listDetails.add(jsonMap);
 			
+			rentChange = result.getString("restimateValueChangeSign");
+			
 			jsonMap = new HashMap<String, String>();
 			jsonMap.put("PropertyKey", "All Time Rent Range");
 			jsonMap.put("PropertyValue", "$" + result.getString("restimateValueRangeLow") + " - $" + result.getString("restimateValueRangeHigh"));
@@ -255,7 +327,7 @@ public class BasicInformation extends Fragment {
 	}
     
     public class SpecialAdapter extends SimpleAdapter {
-	    private int[] colors = new int[] { 0xFFFFFFFF, 0xFFD3DCE8 };
+	    private int[] colors = new int[] { 0xFFD3DCE8, 0xFFFFFFFF };
 	     
 	    public SpecialAdapter(Context context, List<HashMap<String, String>> items, int resource, String[] from, int[] to) {
 	        super(context, items, resource, from, to);
@@ -266,6 +338,25 @@ public class BasicInformation extends Fragment {
 	      View view = super.getView(position, convertView, parent);
 	      int colorPos = position % colors.length;
 	      view.setBackgroundColor(colors[colorPos]);
+	      TextView key = (TextView) view.findViewById(R.id.infoKey);
+	      if(position==11 && key.getText().toString().contains("30"))
+	      {
+	    	  TextView value = (TextView) view.findViewById(R.id.infoValue);
+	    	  if(overallChange.equalsIgnoreCase("+"))
+	    		  value.setCompoundDrawablesWithIntrinsicBounds(R.drawable.up, 0, 0, 0);
+	    	  else if(overallChange.equalsIgnoreCase("-"))
+	    		  value.setCompoundDrawablesWithIntrinsicBounds(R.drawable.down, 0, 0, 0);
+	    	  value.setCompoundDrawablePadding(0);
+	      }
+	      if(position==14 && key.getText().toString().contains("30"))
+	      {
+	    	  TextView value = (TextView) view.findViewById(R.id.infoValue);
+	    	  if(rentChange.equalsIgnoreCase("+"))
+	    		  value.setCompoundDrawablesWithIntrinsicBounds(R.drawable.up, 0, 0, 0);
+	    	  else if(rentChange.equalsIgnoreCase("-"))
+	    		  value.setCompoundDrawablesWithIntrinsicBounds(R.drawable.down, 0, 0, 0);
+	    	  value.setCompoundDrawablePadding(0);
+	      }
 	      return view;
 	    }
 	}

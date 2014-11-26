@@ -1,6 +1,13 @@
 package com.webtech.propertysearch;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.Signature;
+
 import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.os.Bundle;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.app.FragmentTransaction;
@@ -8,6 +15,8 @@ import android.support.v4.view.ViewPager;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBar.Tab;
 import android.support.v7.app.ActionBarActivity;
+import android.util.Base64;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.Window;
@@ -26,10 +35,28 @@ public class DisplayPropertyDetails extends ActionBarActivity implements ActionB
 		Intent intent = getIntent();
 		JSONString = intent.getStringExtra(MainActivity.JSONSTRING);
 		//setUpView();
+		try {
+	        PackageInfo info = getPackageManager().getPackageInfo(
+	                "com.webtech.propertysearch", 
+	                PackageManager.GET_SIGNATURES);
+	        for (android.content.pm.Signature signature : info.signatures) {
+	            MessageDigest md = MessageDigest.getInstance("SHA");
+	            md.update(signature.toByteArray());
+	            Log.d("KeyHash:", Base64.encodeToString(md.digest(), Base64.DEFAULT));
+	            }
+	    } catch (NameNotFoundException e) {
+
+	    } catch (NoSuchAlgorithmException e) {
+
+	    }
 		vpPager = (ViewPager)findViewById(R.id.vpPager);
 		adapterViewPager = new MyPagerAdapter(getSupportFragmentManager());
 		vpPager.setAdapter(adapterViewPager);
+		getSupportActionBar().setDisplayShowHomeEnabled(true);
+        getSupportActionBar().setLogo(R.drawable.ic_launcher);
+        getSupportActionBar().setDisplayUseLogoEnabled(true);
 		actionbar = getSupportActionBar();
+		actionbar.setDisplayUseLogoEnabled(true);
 		actionbar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS);
 		actionbar.addTab(actionbar.newTab().setText("Basic Info").setTabListener(this));
 		actionbar.addTab(actionbar.newTab().setText("Historical Zestimates").setTabListener(this));
@@ -125,6 +152,7 @@ public class DisplayPropertyDetails extends ActionBarActivity implements ActionB
 	@Override
 	public void onTabSelected(Tab arg0, FragmentTransaction arg1) {
 		// TODO Auto-generated method stub
+		vpPager.setCurrentItem(arg0.getPosition());
 		
 	}
 
